@@ -99,19 +99,7 @@ EOT
     s/int i;/yy_size_t i;/;
   }
 
-  # Add $prefix_cleanup() call at the end of $prefix_lex_destroy()
-  # find the start of lex_destroy function definition and capture prefix
-  # look for lexer_free(yyscanner, yyscanner) statement within the function and place the cleanup call before it
-  if($cur_function eq $prefix."lex_destroy") {
-    if(/(^\s*)(${prefix}free\s*\(\s*yyscanner\s*,\s*yyscanner\s*\)\s*\;)\s*$/) {
-      $_=<<"EOT";
-$1/* clean up leaks if any before freeing yyscanner */
-$1${prefix}cleanup(yyscanner);
-$1$2
-EOT
-      $line_offset += 2; # added 2 lines to output
-    }
-  }
+  # Cleanup injection is no longer necessary as of Flex 2.6, and indeed causes linker errors.
 
   # Fix ${prefix}_scan_bytes to take a yy_size_t len arg, not int.
   # declaration

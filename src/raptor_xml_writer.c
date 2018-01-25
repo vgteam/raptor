@@ -164,6 +164,12 @@ raptor_xml_writer_nsd_compare(const void *a, const void *b)
 {
   struct nsd* nsd_a = (struct nsd*)a;
   struct nsd* nsd_b = (struct nsd*)b;
+
+  /* Sort NULLs earlier */
+  if(!nsd_a->declaration)
+    return -1;
+  else if(!nsd_b->declaration)
+    return 1;
   return strcmp((const char*)nsd_a->declaration, (const char*)nsd_b->declaration);
 }
 
@@ -181,9 +187,10 @@ raptor_xml_writer_start_element_common(raptor_xml_writer* xml_writer,
   size_t nspace_declarations_count = 0;  
   unsigned int i;
 
-  /* max is 1 per element and 1 for each attribute + size of declared */
   if(nstack) {
-    int nspace_max_count = element->attribute_count+1;
+    int nspace_max_count = element->attribute_count * 2; /* attr and value */
+    if(element->name->nspace)
+      nspace_max_count++;
     if(element->declared_nspaces)
       nspace_max_count += raptor_sequence_size(element->declared_nspaces);
     if(element->xml_language)
@@ -237,7 +244,7 @@ raptor_xml_writer_start_element_common(raptor_xml_writer* xml_writer,
         }
       }
 
-      /* Add the attribute + value */
+      /* Add the attribute's value */
       nspace_declarations[nspace_declarations_count].declaration=
         raptor_qname_format_as_xml(element->attributes[i],
                                    &nspace_declarations[nspace_declarations_count].length);
@@ -278,13 +285,14 @@ raptor_xml_writer_start_element_common(raptor_xml_writer* xml_writer,
 
   if(nstack && element->xml_language) {
     size_t lang_len = strlen(RAPTOR_GOOD_CAST(char*, element->xml_language));
+#define XML_LANG_PREFIX "xml:lang=\""
 #define XML_LANG_PREFIX_LEN 10
     size_t buf_length = XML_LANG_PREFIX_LEN + lang_len + 1;
     unsigned char* buffer = RAPTOR_MALLOC(unsigned char*, buf_length + 1);
     const char quote = '\"';
     unsigned char* p;
 
-    memcpy(buffer, "xml:lang=\"", XML_LANG_PREFIX_LEN);
+    memcpy(buffer, XML_LANG_PREFIX, XML_LANG_PREFIX_LEN);
     p = buffer + XML_LANG_PREFIX_LEN;
     p += raptor_xml_escape_string(xml_writer->world,
                                   element->xml_language, lang_len,

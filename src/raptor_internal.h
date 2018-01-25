@@ -141,7 +141,7 @@ void raptor_sign_free(void *ptr);
 #define RAPTOR_ASSERT(condition, msg) do { \
   if(condition) { \
     RAPTOR_ASSERT_REPORT(msg) \
-    RAPTOR_ASSERT_DIE() \
+    RAPTOR_ASSERT_DIE(return) \
   } \
 } while(0)
 
@@ -173,7 +173,7 @@ void raptor_sign_free(void *ptr);
  *
  * #if defined __STDC_VERSION__ && (__STDC_VERSION__ >= 199901L)
  */
-#if defined __GNUC__ && 460 <= __GNUC__ * 100 + __GNUC_MINOR__
+#if defined(__clang__) || (defined __GNUC__ && 460 <= __GNUC__ * 100 + __GNUC_MINOR__)
 #define IGNORE_FORMAT_NONLITERAL_START \
   _Pragma ("GCC diagnostic push") \
   _Pragma ("GCC diagnostic ignored \"-Wformat-nonliteral\"")
@@ -768,7 +768,6 @@ int raptor_check_ordinal(const unsigned char *name);
 #endif
 #endif
 
-
 /* raptor_nfc_icu.c */
 int raptor_nfc_icu_check (const unsigned char* string, size_t len, int *error);
 
@@ -1243,7 +1242,7 @@ time_t raptor_parse_date(const char *p, time_t *now);
 #endif
 
 /* only used internally now */
-typedef void (*raptor_simple_message_handler)(void *user_data, const char *message, ...);
+typedef void (*raptor_simple_message_handler)(void *user_data, const char *message, ...) RAPTOR_PRINTF_FORMAT(2, 3);
 
 
 /* turtle_common.c */
@@ -1506,6 +1505,9 @@ void raptor_www_finish(raptor_world* world);
 
 /* Unsafe casts: narrowing a value */
 #define RAPTOR_BAD_CAST(t, v) (t)(v)
+
+/* Cast to void* for debugging prints with %p */
+#define RAPTOR_VOIDP(p) (void*)p
 
 /* end of RAPTOR_INTERNAL */
 #endif

@@ -12,7 +12,9 @@
 #endif
 
 #ifdef HAVE_VASPRINTF
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to get vasprintf() available */
+#endif
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -86,7 +88,7 @@ vsnprintf_is_c99(void)
 
 #define VSNPRINTF_NOT_C99_BLOCK(len, buffer, size, format, arguments)   \
   do {                                                                  \
-    if(!buffer || !size) {                                              \
+    if((buffer == NULL) || !size) {                                     \
       /* This vsnprintf doesn't return number of bytes required */      \
       size = 2 + strlen(format);                                        \
       while(1) {                                                        \
@@ -123,7 +125,7 @@ vsnprintf_is_c99(void)
       }                                                                 \
     }                                                                   \
                                                                         \
-    if(buffer)                                                          \
+    if(buffer != NULL)                                                  \
       len = vsnprintf(buffer, size, format, arguments);                 \
   } while(0)
 

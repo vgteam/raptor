@@ -40,12 +40,12 @@ while(<>) {
 
   # Remove generated yy_fatal_error declaration and definition to avoid warnings about unused/non-defined static function
   # declaration
-  if(/^static void yy_fatal_error\s*\(.*\)\s*\;\s*$/) {
+  if(/^static void( yynoreturn)? yy_fatal_error\s*\(.*\)\s*\;\s*$/) {
     $line_offset--; # skipped 1 line
     next;
   }
   # definition
-  if(/^static void yy_fatal_error\s*\(.*\)\s*[^\;]\s*$/) {
+  if(/^static void( yynoreturn)? yy_fatal_error\s*\(.*\)\s*[^\;]\s*$/) {
     do {
       $_=<>;
       $line_offset--; # skipped 1 line
@@ -99,19 +99,13 @@ EOT
     s/int i;/yy_size_t i;/;
   }
 
-  # Add $prefix_cleanup() call at the end of $prefix_lex_destroy()
-  # find the start of lex_destroy function definition and capture prefix
-  # look for lexer_free(yyscanner, yyscanner) statement within the function and place the cleanup call before it
-  if($cur_function eq $prefix."lex_destroy") {
-    if(/(^\s*)(${prefix}free\s*\(\s*yyscanner\s*,\s*yyscanner\s*\)\s*\;)\s*$/) {
-      $_=<<"EOT";
-$1/* clean up leaks if any before freeing yyscanner */
-$1${prefix}cleanup(yyscanner);
-$1$2
-EOT
-      $line_offset += 2; # added 2 lines to output
-    }
-  }
+  # Cleanup injection is no longer necessary as of Flex 2.6, and indeed causes linker errors.
+
+  # Fix ${prefix}_scan_bytes to take a yy_size_t len arg, not int.
+  # declaration
+  s/${prefix}_scan_bytes\s+\( const char \*bytes, int len , yyscan_t yyscanner \);/${prefix}_scan_bytes \( const char \*bytes, yy_size_t len , yyscan_t yyscanner \);/;
+  # definition
+  s/^YY_BUFFER_STATE ${prefix}_scan_bytes\s+\(const char \* yybytes, int  _yybytes_len , yyscan_t yyscanner\)/YY_BUFFER_STATE ${prefix}_scan_bytes \(const char \* yybytes, yy_size_t _yybytes_len , yyscan_t yyscanner\)/;
 
   if($cur_function eq $prefix."_switch_to_buffer" ||
      $cur_function eq $prefix."restart" ||

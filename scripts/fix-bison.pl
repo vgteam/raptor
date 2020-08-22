@@ -29,6 +29,12 @@ while(<>) {
 
   s/^yyerrlab1:// unless $seen_yyerrlab1;
 
+  # If using Bison 3.7+, api.header.include has a default value and it will
+  # generate C code that #includes the header. But we can't tell it the right
+  # final header name in the .y file or we lose support for Bison <3.4. So we
+  # fix up any mention of the header file happens to occur, instead.
+  s/_parser\.tab\.h/_parser.h/g;
+
   # Do not use macro name for a temporary variable
   s/unsigned int yylineno = /unsigned int yylineno_tmp = /;
   s/yyrule - 1, yylineno\)/yyrule - 1, yylineno_tmp\)/;

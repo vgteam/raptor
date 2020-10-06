@@ -116,8 +116,6 @@ static void raptor_turtle_handle_statement(raptor_parser *parser, raptor_stateme
 
 /* Bison 2.6+ : Symbol prefix */
 %define api.prefix {turtle_parser_}
-/* Bison 3.4+ :  Generated header file */
-%define api.header.include {<turtle_parser.h>}
 
 /* Write parser header file with macros (bison -d) */
 %defines

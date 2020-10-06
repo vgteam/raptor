@@ -109,6 +109,7 @@
 #include <turtle_parser.h>
 #include <turtle_common.h>
 
+#define YYSTYPE TURTLE_PARSER_STYPE
 
 /* Prototypes */ 
 static unsigned char *turtle_copy_token(unsigned char *text, size_t len);
@@ -135,6 +136,8 @@ int turtle_lexer_get_column(yyscan_t yyscanner);
 #endif
 
 static void turtle_lexer_cleanup(yyscan_t yyscanner);
+#undef yycleanup
+#define yycleanup turtle_lexer_cleanup
 
 #ifdef HAVE_SETJMP
 static jmp_buf turtle_lexer_fatal_error_longjmp_env;

@@ -329,6 +329,23 @@ raptor_avltree_delete(raptor_avltree* tree, void* p_data)
 }
 
 
+/**
+ * raptor_avltree_trim:
+ * @tree: AVLTree object
+ *
+ * Delete all nodes from an AVL tree but keep the shell.
+ */
+void
+raptor_avltree_trim(raptor_avltree* tree)
+{
+  if(!tree)
+    return;
+  
+  raptor_free_avltree_internal(tree, tree->root);
+  tree->root = NULL;
+}
+
+
 static int
 raptor_avltree_visit_internal(raptor_avltree* tree, raptor_avltree_node* node,
                               int depth,
@@ -762,7 +779,10 @@ raptor_avltree_delete_internal(raptor_avltree* tree,
     return rdata;
   }
 
-  cmp = tree->compare_handler((*node_pp)->data, p_data);
+  if(p_data)
+    cmp = tree->compare_handler((*node_pp)->data, p_data);
+  else
+    cmp = 0;
 
   if(cmp > 0) {
     RAPTOR_AVLTREE_DEBUG1("too high - scan left\n");

@@ -84,6 +84,7 @@
  *
  */
 
+#ifndef STANDALONE
 const unsigned char * const raptor_xml_namespace_uri = (const unsigned char *)"http://www.w3.org/XML/1998/namespace";
 const unsigned char * const raptor_rdf_namespace_uri = (const unsigned char *)"http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 const unsigned int raptor_rdf_namespace_uri_len = 43;
@@ -1075,6 +1076,8 @@ raptor_namespace_stack_to_array(raptor_namespace_stack *nstack,
 
   return ns_list;
 }
+
+#endif /* !STANDALONE */
 
 
 #ifdef STANDALONE

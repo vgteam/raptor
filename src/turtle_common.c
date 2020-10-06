@@ -43,6 +43,7 @@
 
 #include <turtle_parser.h>
 #define YY_NO_UNISTD_H 1
+#define YYSTYPE TURTLE_PARSER_STYPE
 #include <turtle_lexer.h>
 #include <turtle_common.h>
 
@@ -236,7 +237,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
   unsigned char *d;
   
   if(!name)
-    return -1;
+    return 0;
 
   for(s = name, d = name, i = 0; i < len; s++, i++) {
     unsigned char c=*s;
@@ -271,7 +272,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
         if(i+ulen > len) {
           error_handler(error_data,
                         "Turtle name error - \\%c over end of line", c);
-          return 1;
+          return 0;
         }
         
         for(ii = 0; ii < ulen; ii++) {
@@ -280,7 +281,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
             error_handler(error_data,
                           "Turtle name error - illegal hex digit %c in Unicode escape '%c%s...'",
                           cc, c, s);
-            return 1;
+            return 0;
           }
         }
 
@@ -289,7 +290,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
           error_handler(error_data,
                         "Turtle name error - illegal Uncode escape '%c%s...'",
                         c, s);
-          return 1;
+          return 0;
         }
 
         s+= ulen-1;
@@ -299,7 +300,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
           error_handler(error_data,
                         "Turtle name error - illegal Unicode character with code point #x%lX (max #x%lX).", 
                         unichar, raptor_unicode_max_codepoint);
-          return 1;
+          return 0;
         }
           
         unichar_width = raptor_unicode_utf8_string_put_char(unichar, d, 
@@ -308,7 +309,7 @@ raptor_turtle_expand_qname_escapes(unsigned char *name,
           error_handler(error_data,
                         "Turtle name error - illegal Unicode character with code point #x%lX.", 
                         unichar);
-          return 1;
+          return 0;
         }
         d += (size_t)unichar_width;
 

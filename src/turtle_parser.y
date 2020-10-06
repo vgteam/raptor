@@ -78,7 +78,8 @@
 #endif
 
 #ifdef RAPTOR_DEBUG
-const char * turtle_token_print(raptor_world* world, int token, YYSTYPE *lval);
+const char * turtle_token_print(raptor_world* world, int token,
+                                TURTLE_PARSER_STYPE *lval);
 #endif
 
 
@@ -90,6 +91,7 @@ const char * turtle_token_print(raptor_world* world, int token, YYSTYPE *lval);
 
 /* Prototypes */ 
 int turtle_parser_error(raptor_parser* rdf_parser, void* scanner, const char *msg);
+static void turtle_parser_error_simple(void* user_data, const char *msg, ...) RAPTOR_PRINTF_FORMAT(2, 3);
 
 /* Make lex/yacc interface as small as possible */
 #undef yylex
@@ -109,11 +111,13 @@ static void raptor_turtle_handle_statement(raptor_parser *parser, raptor_stateme
 
 %require "3.0"
 
-/* File prefix (bison -b) */
+/* File prefix (-b) */
 %file-prefix "turtle_parser"
 
-/* Symbol prefix (bison -d : deprecated) */
-%name-prefix "turtle_parser_"
+/* Bison 2.6+ : Symbol prefix */
+%define api.prefix {turtle_parser_}
+/* Bison 3.4+ :  Generated header file */
+%define api.header.include {<turtle_parser.h>}
 
 /* Write parser header file with macros (bison -d) */
 %defines
@@ -1281,8 +1285,10 @@ collection: LEFT_ROUND itemList RIGHT_ROUND
 
 /* Support functions */
 
+/* Error handler with scanner context, during parsing */
 int
-turtle_parser_error(raptor_parser* rdf_parser, void* scanner, const char *msg)
+turtle_parser_error(raptor_parser* rdf_parser, void* scanner,
+                    const char *msg)
 {
   raptor_turtle_parser* turtle_parser;
 
@@ -1308,6 +1314,40 @@ turtle_parser_error(raptor_parser* rdf_parser, void* scanner, const char *msg)
                    &rdf_parser->locator, msg);
 
   return 0;
+}
+
+
+/* Error handler within raptor functions and callbacks */
+static void
+turtle_parser_error_simple(void* user_data, const char *msg, ...)
+{
+  raptor_parser* rdf_parser = (raptor_parser*)user_data;
+  raptor_turtle_parser* turtle_parser;
+  va_list args;
+
+  va_start(args, msg);
+
+  turtle_parser = (raptor_turtle_parser*)rdf_parser->context;
+
+  if(turtle_parser->consumed == turtle_parser->consumable &&
+     turtle_parser->processed < turtle_parser->consumed &&
+     !turtle_parser->is_end) {
+    /* we encountered an error on or around the last byte of the buffer
+     * sorting it in the next run aye? */
+    return;
+  }
+  
+  if(turtle_parser->error_count++)
+    return;
+
+  rdf_parser->locator.line = turtle_parser->lineno;
+#ifdef RAPTOR_TURTLE_USE_ERROR_COLUMNS
+  rdf_parser->locator.column = turtle_lexer_get_column(yyscanner);
+#endif
+
+  raptor_log_error_varargs(rdf_parser->world, RAPTOR_LOG_LEVEL_ERROR,
+                           &rdf_parser->locator, msg,
+                           args);
 }
 
 
@@ -1353,7 +1393,7 @@ turtle_qname_to_uri(raptor_parser *rdf_parser, unsigned char *name, size_t name_
 #endif
 
   name_len = raptor_turtle_expand_qname_escapes(name, name_len,
-                                                (raptor_simple_message_handler)turtle_parser_error, rdf_parser);
+                                                (raptor_simple_message_handler)turtle_parser_error_simple, rdf_parser);
   if(!name_len)
     return NULL;
   
@@ -1382,7 +1422,7 @@ turtle_parse(raptor_parser *rdf_parser, const char *string, size_t length)
 #endif
 
   turtle_lexer_set_extra(rdf_parser, turtle_parser->scanner);
-  (void)turtle_lexer__scan_bytes((char *)string, (int)length, turtle_parser->scanner);
+  (void)turtle_lexer__scan_bytes((char *)string, (yy_size_t)length, turtle_parser->scanner);
 
   rc = turtle_parser_parse(rdf_parser, turtle_parser->scanner);
 
@@ -1422,7 +1462,7 @@ turtle_push_parse(raptor_parser *rdf_parser,
 #endif
 
   turtle_lexer_set_extra(rdf_parser, turtle_parser->scanner);
-  buffer = turtle_lexer__scan_bytes(string, length, turtle_parser->scanner);
+  buffer = turtle_lexer__scan_bytes(string, (yy_size_t)length, turtle_parser->scanner);
 
   /* returns a parser instance or 0 on out of memory */
   ps = yypstate_new();
@@ -1430,10 +1470,10 @@ turtle_push_parse(raptor_parser *rdf_parser,
     return 1;
 
   do {
-    YYSTYPE lval;
+    TURTLE_PARSER_YYSTYPE lval;
     int token;
 
-    memset(&lval, 0, sizeof(YYSTYPE));
+    memset(&lval, 0, sizeof(TURTLE_PARSER_YYSTYPE));
     
     token = turtle_lexer_lex(&lval, turtle_parser->scanner);
 
@@ -1722,10 +1762,27 @@ raptor_turtle_parse_chunk(raptor_parser* rdf_parser,
         turtle_parser->deferred = NULL;
       }
     }
-  } else if(rdf_parser->emitted_default_graph) {
-    /* for non-TRIG - end default graph after last triple */
-    raptor_parser_end_graph(rdf_parser, NULL, 0);
-    rdf_parser->emitted_default_graph--;
+  } else {
+    /* this was the last chunk, finalise */
+    if(turtle_parser->deferred) {
+      raptor_sequence* def = turtle_parser->deferred;
+      int i;
+      for(i = 0; i < raptor_sequence_size(def); i++) {
+	raptor_statement *t2 = (raptor_statement*)raptor_sequence_get_at(def, i);
+
+	raptor_turtle_handle_statement(rdf_parser, t2);
+      }
+    }
+    if(rdf_parser->emitted_default_graph) {
+      /* for non-TRIG - end default graph after last triple */
+      raptor_parser_end_graph(rdf_parser, NULL, 0);
+      rdf_parser->emitted_default_graph--;
+    }
+    if(turtle_parser->deferred) {
+      /* clear resources */
+      raptor_free_sequence(turtle_parser->deferred);
+      turtle_parser->deferred = NULL;
+    }
   }
   return rc;
 }
